@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Weather Today</title>
+  
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      min-height: 100vh;
+      
+      /* Beautiful calm aesthetic background */
+      background: url('https://images.unsplash.com/photo-1507525428034-b723cf961d3e') 
+                  no-repeat center center fixed;
+      background-size: cover;
+      
+      color: #111;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .container {
+      background: rgba(255, 255, 255, 0.88);
+      border-radius: 16px;
+      padding: 32px 24px;
+      width: 100%;
+      max-width: 400px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+      text-align: center;
+    }
+
+    h1 {
+      font-size: 28px;
+      margin-bottom: 24px;
+      color: #1a365d;
+    }
+
+    .search {
+      display: flex;
+      margin-bottom: 28px;
+    }
+
+    input {
+      flex: 1;
+      padding: 14px 18px;
+      font-size: 16px;
+      border: 2px solid #cbd5e1;
+      border-radius: 30px 0 0 30px;
+      outline: none;
+    }
+
+    button {
+      padding: 0 24px;
+      background: #3b82f6;
+      color: white;
+      border: none;
+      border-radius: 0 30px 30px 0;
+      font-size: 18px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #2563eb;
+    }
+
+    .result {
+      margin-top: 20px;
+    }
+
+    .city {
+      font-size: 32px;
+      margin-bottom: 8px;
+      color: #1e293b;
+    }
+
+    .temperature {
+      font-size: 64px;
+      font-weight: bold;
+      margin: 0;
+      color: #1e40af;
+    }
+
+    .description {
+      font-size: 22px;
+      margin: 8px 0 24px;
+      text-transform: capitalize;
+      color: #475569;
+    }
+
+    .info {
+      display: flex;
+      justify-content: space-around;
+      font-size: 18px;
+      color: #334155;
+    }
+
+    .info div i {
+      font-size: 26px;
+      color: #3b82f6;
+      margin-bottom: 6px;
+    }
+
+    .loading, .error-msg {
+      font-size: 20px;
+      margin: 40px 0;
+      color: #64748b;
+    }
+
+    .hide {
+      display: none;
+    }
+
+    @media (max-width: 500px) {
+      .container {
+        padding: 24px 18px;
+      }
+      .search {
+        flex-direction: column;
+      }
+      input, button {
+        border-radius: 30px;
+        margin-bottom: 12px;
+      }
+      button {
+        padding: 14px;
+      }
+      .temperature {
+        font-size: 52px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h1>Weather Today</h1>
+
+  <div class="search">
+    <input type="text" id="city" placeholder="Enter city name" />
+    <button id="btn"><i class="fas fa-search"></i></button>
+  </div>
+
+  <div id="loading" class="loading">Getting weather...</div>
+  <div id="error" class="error-msg hide"></div>
+
+  <div id="result" class="result hide">
+    <div class="city" id="city-name"></div>
+    <div class="temperature" id="temp"></div>
+    <div class="description" id="desc"></div>
+
+    <div class="info">
+      <div>
+        <i class="fas fa-wind"></i><br>
+        <span id="wind"></span> km/h
+      </div>
+      <div>
+        <i class="fas fa-tint"></i><br>
+        <span id="humidity"></span>%
+      </div>
+      <div>
+        <i class="fas fa-temperature-high"></i><br>
+        Feels <span id="feels"></span>°
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const input = document.getElementById("city");
+  const button = document.getElementById("btn");
+  const resultBox = document.getElementById("result");
+  const loading = document.getElementById("loading");
+  const errorBox = document.getElementById("error");
+
+  const cityName = document.getElementById("city-name");
+  const temp = document.getElementById("temp");
+  const desc = document.getElementById("desc");
+  const wind = document.getElementById("wind");
+  const humidity = document.getElementById("humidity");
+  const feels = document.getElementById("feels");
+
+  function getWeather(city) {
+    errorBox.classList.add("hide");
+    resultBox.classList.add("hide");
+    loading.classList.remove("hide");
+
+    // 1. Find coordinates of the city
+    fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${city}&count=1`)
+      .then(res => res.json())
+      .then(data => {
+        if (!data.results || data.results.length === 0) {
+          throw new Error("City not found");
+        }
+        const lat = data.results[0].latitude;
+        const lon = data.results[0].longitude;
+
+        // 2. Get current weather
+        return fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m`);
+      })
+      .then(res => res.json())
+      .then(data => {
+        const now = data.current;
+
+        cityName.textContent = city;
+        temp.textContent = Math.round(now.temperature_2m) + "°C";
+        desc.textContent = getWeatherText(now.weather_code);
+        wind.textContent = Math.round(now.wind_speed_10m);
+        humidity.textContent = now.relative_humidity_2m;
+        feels.textContent = Math.round(now.apparent_temperature);
+
+        loading.classList.add("hide");
+        resultBox.classList.remove("hide");
+      })
+      .catch(err => {
+        loading.classList.add("hide");
+        errorBox.textContent = err.message;
+        errorBox.classList.remove("hide");
+      });
+  }
+
+  function getWeatherText(code) {
+    const weatherTypes = {
+      0: "Clear sky",
+      1: "Mainly clear",
+      2: "Partly cloudy",
+      3: "Overcast",
+      45: "Fog",
+      51: "Light drizzle",
+      61: "Light rain",
+      63: "Moderate rain",
+      71: "Light snow",
+      80: "Showers",
+      95: "Thunderstorm"
+    };
+    return weatherTypes[code] || "Unknown";
+  }
+
+  button.addEventListener("click", () => {
+    const city = input.value.trim();
+    if (city) getWeather(city);
+  });
+
+  input.addEventListener("keypress", (e) => {
+    if (e.key === "Enter") {
+      const city = input.value.trim();
+      if (city) getWeather(city);
+    }
+  });
+
+  // Show Mumbai by default (since you're from Mumbai)
+  getWeather("Mumbai");
+
+</script>
+</body>
+</html>
